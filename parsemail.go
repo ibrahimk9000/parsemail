@@ -118,6 +118,14 @@ func parseMultipartRelated(msg io.Reader, boundary string) (textBody, htmlBody s
 		if err != nil {
 			return textBody, htmlBody, embeddedFiles, err
 		}
+		if isEmbeddedFile(part) {
+			ef, err := decodeEmbeddedFile(part)
+			if err != nil {
+				return textBody, htmlBody, embeddedFiles, err
+			}
+			embeddedFiles = append(embeddedFiles, ef)
+			return textBody, htmlBody, embeddedFiles, err
+		}
 
 		switch contentType {
 		case contentTypeTextPlain:
@@ -173,6 +181,15 @@ func parseMultipartAlternative(msg io.Reader, boundary string) (textBody, htmlBo
 
 		contentType, params, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
 		if err != nil {
+			return textBody, htmlBody, embeddedFiles, err
+		}
+		if isEmbeddedFile(part) {
+			ef, err := decodeEmbeddedFile(part)
+			if err != nil {
+				return textBody, htmlBody, embeddedFiles, err
+			}
+
+			embeddedFiles = append(embeddedFiles, ef)
 			return textBody, htmlBody, embeddedFiles, err
 		}
 
@@ -242,6 +259,14 @@ func parseMultipartMixed(msg io.Reader, boundary string) (textBody, htmlBody str
 			if err != nil {
 				return textBody, htmlBody, attachments, embeddedFiles, err
 			}
+		} else if isAttachment(part) {
+			at, err := decodeAttachment(part)
+			if err != nil {
+				return textBody, htmlBody, attachments, embeddedFiles, err
+			}
+
+			attachments = append(attachments, at)
+
 		} else if contentType == contentTypeTextPlain {
 			ppContent, err := ioutil.ReadAll(part)
 			if err != nil {
@@ -256,13 +281,6 @@ func parseMultipartMixed(msg io.Reader, boundary string) (textBody, htmlBody str
 			}
 
 			htmlBody += strings.TrimSuffix(string(ppContent[:]), "\n")
-		} else if isAttachment(part) {
-			at, err := decodeAttachment(part)
-			if err != nil {
-				return textBody, htmlBody, attachments, embeddedFiles, err
-			}
-
-			attachments = append(attachments, at)
 		} else {
 			return textBody, htmlBody, attachments, embeddedFiles, fmt.Errorf("Unknown multipart/mixed nested mime type: %s", contentType)
 		}
@@ -346,7 +364,7 @@ func decodeAttachment(part *multipart.Part) (at Attachment, err error) {
 
 func decodeContent(content io.Reader, encoding string) (io.Reader, error) {
 	switch encoding {
-	case "base64":
+	case "base64","BASE64":
 		decoded := base64.NewDecoder(base64.StdEncoding, content)
 		b, err := ioutil.ReadAll(decoded)
 		if err != nil {
