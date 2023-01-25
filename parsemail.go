@@ -364,7 +364,7 @@ func decodeAttachment(part *multipart.Part) (at Attachment, err error) {
 
 func decodeContent(content io.Reader, encoding string) (io.Reader, error) {
 	switch encoding {
-	case "base64","BASE64":
+	case "base64", "BASE64":
 		decoded := base64.NewDecoder(base64.StdEncoding, content)
 		b, err := ioutil.ReadAll(decoded)
 		if err != nil {
@@ -372,15 +372,13 @@ func decodeContent(content io.Reader, encoding string) (io.Reader, error) {
 		}
 
 		return bytes.NewReader(b), nil
-	case "7bit":
+	case "7bit", "":
 		dd, err := ioutil.ReadAll(content)
 		if err != nil {
 			return nil, err
 		}
 
 		return bytes.NewReader(dd), nil
-	case "":
-		return content, nil
 	default:
 		return nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}
@@ -501,7 +499,7 @@ type Email struct {
 	ResentMessageID string
 
 	ContentType string
-	Content io.Reader
+	Content     io.Reader
 
 	HTMLBody string
 	TextBody string
